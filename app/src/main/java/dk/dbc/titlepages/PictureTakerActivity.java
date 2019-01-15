@@ -12,6 +12,7 @@ import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
@@ -49,7 +50,8 @@ import java.util.Comparator;
 public class PictureTakerActivity extends Activity implements
         ImageReader.OnImageAvailableListener,
         TextureView.SurfaceTextureListener,
-        ShutterButton.OnShutterButtonListener {
+        ShutterButton.OnShutterButtonListener,
+        ImageCaptureSequenceListener {
     private static final String TAG = Constants.TAG;
     private final int REQUEST_PERMISSIONS_CODE = 1;
 
@@ -68,6 +70,9 @@ public class PictureTakerActivity extends Activity implements
 
     CountingIdlingResource countingIdlingResource = new CountingIdlingResource(
         Constants.TAG);
+
+    // This capture request builder is used to handle focusing the preview
+    private Optional<CaptureRequest.Builder> preview = Optional.empty();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -109,6 +114,7 @@ public class PictureTakerActivity extends Activity implements
     // upon successfully opening one.
     private void setup() {
         countingIdlingResource.increment();
+        captureSessionCallback.addListener(this);
         startThread();
         try {
             openCamera();
@@ -140,7 +146,7 @@ public class PictureTakerActivity extends Activity implements
         backgroundHandler = new Handler(backgroundThread.getLooper());
     }
 
-    private void createPreview() throws CameraInitializationException {
+    private CaptureRequest.Builder createPreview() throws CameraInitializationException {
         if(!cameraDeviceStateCallback.getCameraDevice().isPresent()) {
             throw new CameraInitializationException("Camera not present");
         }
@@ -156,6 +162,7 @@ public class PictureTakerActivity extends Activity implements
                 .createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             captureRequestBuilder.addTarget(surface);
             configureCaptureSession(camera, surface, captureRequestBuilder);
+            return captureRequestBuilder;
         } catch (CameraAccessException e) {
             throw new CameraInitializationException(String.format(
                 "error creating capture request: %s", e.toString()), e);
@@ -320,7 +327,7 @@ public class PictureTakerActivity extends Activity implements
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
         try {
-            createPreview();
+            preview = Optional.of(createPreview());
         } catch (CameraInitializationException e) {
             Log.e(TAG, String.format("Error creating camera preview: %s",
                 e.toString()));
@@ -362,6 +369,60 @@ public class PictureTakerActivity extends Activity implements
         if(!captureSessionStateCallback.getSession().isPresent()) {
             throw new CapturePictureException("Couldn't get capture session");
         }
+        final CameraCaptureSession session = captureSessionStateCallback
+            .getSession().get();
+        lockFocus(session);
+    }
+
+    private void lockFocus(CameraCaptureSession session) {
+        if(preview.isPresent()) {
+            final CaptureRequest.Builder previewBuilder = preview.get();
+            previewBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
+                CameraMetadata.CONTROL_AF_TRIGGER_START);
+            captureSessionCallback.setMode(CaptureSessionCallback.Mode
+                .AWAITING_LOCK);
+            try {
+                session.capture(previewBuilder.build(), captureSessionCallback,
+                    backgroundHandler);
+            } catch (CameraAccessException e) {
+                Log.e(TAG, String.format("Error locking focus: %s",
+                    e.toString()));
+                Toast.makeText(this, getString(
+                    R.string.camera_state_error_locking_focus),
+                    Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    @Override
+    public void startPrecapture() {
+        final CameraCaptureSession session = captureSessionStateCallback
+            .getSession().get();
+        if(preview.isPresent()) {
+            final CaptureRequest.Builder previewBuilder = preview.get();
+            previewBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
+                CameraMetadata.CONTROL_AE_PRECAPTURE_TRIGGER_START);
+            captureSessionCallback.setMode(CaptureSessionCallback.Mode
+                .AWAITING_PRETRIGGER);
+            try {
+                session.capture(previewBuilder.build(), captureSessionCallback,
+                    backgroundHandler);
+            } catch (CameraAccessException e) {
+                Log.e(TAG, String.format("Error during precapture: %s",
+                    e.toString()));
+                // Show this as an error with focusing even though the real
+                // problem is starting the auto-exposure sequence. The end user
+                // will probably understand this message better when the error
+                // reporting is so brief.
+                Toast.makeText(this, getString(
+                    R.string.camera_state_error_locking_focus),
+                    Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    @Override
+    public void startCapture() {
         final CameraDevice camera = cameraDeviceStateCallback
             .getCameraDevice().get();
         try {
@@ -377,7 +438,10 @@ public class PictureTakerActivity extends Activity implements
             session.capture(captureRequestBuilder.build(),
                 captureSessionCallback, null);
         } catch (CameraAccessException e) {
-            throw new CapturePictureException("Error capturing picture", e);
+            Log.e(TAG, String.format("Error capturing picture: %s",
+                e.toString()));
+            Toast.makeText(this, getString(R.string.error_on_image_capture),
+                Toast.LENGTH_LONG).show();
         }
     }
 
