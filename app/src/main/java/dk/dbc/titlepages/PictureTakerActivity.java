@@ -150,8 +150,10 @@ public class PictureTakerActivity extends Activity implements
         }
         final Surface surface = new Surface(surfaceTexture);
         try {
-            final CameraDevice camera = cameraDeviceStateCallback.getCameraDevice().get();
-            final CaptureRequest.Builder captureRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            final CameraDevice camera = cameraDeviceStateCallback
+                .getCameraDevice().get();
+            final CaptureRequest.Builder captureRequestBuilder = camera
+                .createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             captureRequestBuilder.addTarget(surface);
             configureCaptureSession(camera, surface, captureRequestBuilder);
         } catch (CameraAccessException e) {
