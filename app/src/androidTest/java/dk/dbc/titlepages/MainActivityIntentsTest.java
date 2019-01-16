@@ -8,8 +8,12 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.clearText;
 import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.action.ViewActions.typeText;
+import static androidx.test.espresso.intent.Intents.intended;
 import static androidx.test.espresso.intent.Intents.intending;
+import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.isInternal;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static org.hamcrest.CoreMatchers.is;
@@ -76,5 +80,23 @@ public class MainActivityIntentsTest {
         assertThat("does not contain titlepage filename", intentsTestRule
             .getActivity().resultImageFilenames.containsKey(
                 Constants.TITLEPAGE_FILENAME_KEY), is(false));
+    }
+
+    @Test
+    public void test_titlepageExtras() {
+        onView(withId(R.id.book_id)).perform(clearText(), typeText("135531"));
+        onView(withId(R.id.titlepage_picture_btn)).perform(click());
+        intended(hasExtra(Constants.BOOK_ID_KEY, "135531"));
+        intended(hasExtra(Constants.IMAGE_TYPE_KEY,
+            Constants.IMAGE_TYPE_TITLEPAGE));
+    }
+
+    @Test
+    public void test_colophonExtras() {
+        onView(withId(R.id.book_id)).perform(clearText(), typeText("543123"));
+        onView(withId(R.id.colophon_picture_btn)).perform(click());
+        intended(hasExtra(Constants.BOOK_ID_KEY, "543123"));
+        intended(hasExtra(Constants.IMAGE_TYPE_KEY,
+            Constants.IMAGE_TYPE_COLOPHON));
     }
 }

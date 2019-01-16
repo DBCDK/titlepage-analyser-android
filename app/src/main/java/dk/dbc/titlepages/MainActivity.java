@@ -39,9 +39,13 @@ public class MainActivity extends Activity implements View.OnClickListener {
         final Intent intent = new Intent(this, PictureTakerActivity.class);
         intent.putExtra(Constants.BOOK_ID_KEY, bookId);
         if(id == R.id.titlepage_picture_btn) {
+            intent.putExtra(Constants.IMAGE_TYPE_KEY,
+                Constants.IMAGE_TYPE_TITLEPAGE);
             startActivityForResult(intent,
                 CAPTURE_TITLEPAGE_PICTURE_REQUEST_CODE);
         } else if(id == R.id.colophon_picture_btn) {
+            intent.putExtra(Constants.IMAGE_TYPE_KEY,
+                Constants.IMAGE_TYPE_COLOPHON);
             startActivityForResult(intent,
                 CAPTURE_COLOPHON_PICTURE_REQUEST_CODE);
         } else {
