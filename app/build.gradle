@@ -71,6 +71,8 @@ dependencies {
         version: androidx_test_ext_junit_version
     androidTestImplementation group: "androidx.test.espresso",
         name: "espresso-core", version: espresso_version
+    androidTestImplementation group: "androidx.test.espresso",
+        name: "espresso-intents", version: espresso_version
     androidTestImplementation group: "androidx.test",
         name: "rules", version: androidx_test_rules_version
     androidTestImplementation group: "androidx.test.uiautomator",

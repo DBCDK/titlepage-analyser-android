@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
@@ -238,11 +239,11 @@ public class PictureTakerActivity extends Activity implements
     }
 
     private static class ImageSaverTask extends AsyncTask<Void, Void, ResultHolder<Boolean>> {
-        private final WeakReference<Context> contextReference;
+        private final WeakReference<PictureTakerActivity> pictureTakerActivityReference;
         private final Image image;
         private final File outputFile;
-        ImageSaverTask(Context context, Image image, File outputFile) {
-            this.contextReference = new WeakReference<>(context);
+        ImageSaverTask(PictureTakerActivity pictureTakerActivity, Image image, File outputFile) {
+            this.pictureTakerActivityReference = new WeakReference<>(pictureTakerActivity);
             this.image = image;
             this.outputFile = outputFile;
         }
@@ -274,24 +275,35 @@ public class PictureTakerActivity extends Activity implements
 
         @Override
         public void onPostExecute(ResultHolder<Boolean> resultHolder) {
-            final Context context = contextReference.get();
-            if(context != null) {
+            final PictureTakerActivity pictureTakerActivity =
+                pictureTakerActivityReference.get();
+            if(pictureTakerActivity != null) {
                 resultHolder.getError().ifPresent(error ->
-                    Toast.makeText(context, context.getString(
+                    Toast.makeText(pictureTakerActivity, pictureTakerActivity
+                        .getString(
                         R.string.error_on_image_save, error.toString()),
                         Toast.LENGTH_LONG).show()
                 );
                 resultHolder.getObject().ifPresent(result -> {
                     if(result) {
-                        Toast.makeText(context, context.getString(
+                        Toast.makeText(pictureTakerActivity,
+                            pictureTakerActivity.getString(
                             R.string.image_saved), Toast.LENGTH_LONG).show();
+                        final Intent resultIntent = new Intent();
+                        resultIntent.putExtra(Constants.RESULT_FILENAME_KEY,
+                            outputFile.getAbsolutePath());
+                        pictureTakerActivity.setResult(Activity.RESULT_OK,
+                            resultIntent);
                     } else {
                         // This should never happen
-                        Toast.makeText(context, context.getString(
+                        pictureTakerActivity.setResult(Activity.RESULT_CANCELED);
+                        Toast.makeText(pictureTakerActivity,
+                            pictureTakerActivity.getString(
                             R.string.error_on_image_save_unknown_error),
                             Toast.LENGTH_LONG).show();
                     }
                 });
+                pictureTakerActivity.finish();
             }
         }
     }
