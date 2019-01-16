@@ -28,11 +28,10 @@ public class CaptureSessionCallback extends CameraCaptureSession.CaptureCallback
     private void process(CaptureResult result) {
         if(mode == Mode.AWAITING_LOCK) {
             final Integer focusState = result.get(CaptureResult.CONTROL_AF_STATE);
-            if(focusState == null) {
-                sequenceListener.ifPresent(listener -> listener.startCapture());
-            } else if(focusState == CaptureResult
+            // Check if focusState is null to avoid null pointers when unboxing
+            if(focusState != null && (focusState == CaptureResult
                     .CONTROL_AF_STATE_FOCUSED_LOCKED || focusState ==
-                    CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED) {
+                    CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED)) {
                 final Integer exposureState = result.get(CaptureResult
                     .CONTROL_AE_STATE);
                 if(exposureState == null || exposureState == CaptureResult
