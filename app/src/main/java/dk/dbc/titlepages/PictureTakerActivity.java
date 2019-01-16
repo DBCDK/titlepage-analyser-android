@@ -74,6 +74,8 @@ public class PictureTakerActivity extends Activity implements
 
     // This capture request builder is used to handle focusing the preview
     private Optional<CaptureRequest.Builder> preview = Optional.empty();
+    private Optional<String> bookId = Optional.empty();
+    private Optional<String> imageType = Optional.empty();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,6 +91,22 @@ public class PictureTakerActivity extends Activity implements
 
         if(hasCameraPermission) {
             setup();
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        final Bundle extras = getIntent().getExtras();
+        if(extras != null) {
+            if(extras.containsKey(Constants.BOOK_ID_KEY)) {
+                bookId = Optional.ofNullable(extras.getString(Constants
+                    .BOOK_ID_KEY));
+            }
+            if(extras.containsKey(Constants.IMAGE_TYPE_KEY)) {
+                imageType = Optional.ofNullable(extras.getString(Constants
+                    .IMAGE_TYPE_KEY));
+            }
         }
     }
 
@@ -230,9 +248,9 @@ public class PictureTakerActivity extends Activity implements
 
     @Override
     public void onImageAvailable(ImageReader imageReader) {
-        // TODO: save to the proper location and return it to the starting
-        //  activity
-        final File outputFile = new File(getFilesDir(), "titlepage-sender.jpg");
+        final String filename = String.format("%s-%s.jpg",
+            bookId.orElse("image"), imageType.orElse("unknown_type"));
+        final File outputFile = new File(getFilesDir(), filename);
         final ImageSaverTask imageSaverTask = new ImageSaverTask(this,
             imageReader.acquireLatestImage(), outputFile);
         imageSaverTask.execute();
