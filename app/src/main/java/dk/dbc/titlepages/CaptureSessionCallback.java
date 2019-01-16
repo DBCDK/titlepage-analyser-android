@@ -5,9 +5,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.support.annotation.NonNull;
-
-import java.util.ArrayList;
-import java.util.List;
+import com.annimon.stream.Optional;
 
 public class CaptureSessionCallback extends CameraCaptureSession.CaptureCallback {
     /*
@@ -24,20 +22,14 @@ public class CaptureSessionCallback extends CameraCaptureSession.CaptureCallback
         PICTURE_TAKEN
     }
 
-    private final List<ImageCaptureSequenceListener> sequenceListeners;
+    private Optional<ImageCaptureSequenceListener> sequenceListener = Optional.empty();
     private Mode mode;
-
-    CaptureSessionCallback() {
-        sequenceListeners = new ArrayList<>();
-    }
 
     private void process(CaptureResult result) {
         if(mode == Mode.AWAITING_LOCK) {
             final Integer focusState = result.get(CaptureResult.CONTROL_AF_STATE);
             if(focusState == null) {
-                for(ImageCaptureSequenceListener listener : sequenceListeners) {
-                    listener.startCapture();
-                }
+                sequenceListener.ifPresent(listener -> listener.startCapture());
             } else if(focusState == CaptureResult
                     .CONTROL_AF_STATE_FOCUSED_LOCKED || focusState ==
                     CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED) {
@@ -46,13 +38,9 @@ public class CaptureSessionCallback extends CameraCaptureSession.CaptureCallback
                 if(exposureState == null || exposureState == CaptureResult
                         .CONTROL_AE_STATE_CONVERGED) {
                     mode = Mode.PICTURE_TAKEN;
-                    for(ImageCaptureSequenceListener listener : sequenceListeners) {
-                        listener.startCapture();
-                    }
+                    sequenceListener.ifPresent(listener -> listener.startCapture());
                 } else {
-                    for (ImageCaptureSequenceListener listener : sequenceListeners) {
-                        listener.startPrecapture();
-                    }
+                    sequenceListener.ifPresent(listener -> listener.startPrecapture());
                 }
             }
         }
@@ -74,7 +62,7 @@ public class CaptureSessionCallback extends CameraCaptureSession.CaptureCallback
         this.mode = mode;
     }
 
-    public void addListener(ImageCaptureSequenceListener listener) {
-        sequenceListeners.add(listener);
+    public void setListener(ImageCaptureSequenceListener listener) {
+        sequenceListener = Optional.of(listener);
     }
 }

@@ -114,7 +114,7 @@ public class PictureTakerActivity extends Activity implements
     // upon successfully opening one.
     private void setup() {
         countingIdlingResource.increment();
-        captureSessionCallback.addListener(this);
+        captureSessionCallback.setListener(this);
         startThread();
         try {
             openCamera();
