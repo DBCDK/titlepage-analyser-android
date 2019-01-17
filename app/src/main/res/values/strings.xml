@@ -22,4 +22,6 @@
     <string name="camera_state_error_in_use">kameraet er i brug</string>
     <string name="camera_state_error_max_camera_devices">for mange kamera-enheder i brug</string>
     <string name="camera_state_error_locking_focus">Kunne ikke fokusere</string>
+
+    <string name="error_on_image_upload">Kunne ikke uploade billede</string>
 </resources>

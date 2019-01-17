@@ -13,6 +13,9 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // value taken from gradle.properties
+        buildConfigField "String", "uploadHost", uploadHost
     }
     buildTypes {
         release {
