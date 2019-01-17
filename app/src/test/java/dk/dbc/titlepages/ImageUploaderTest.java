@@ -56,4 +56,15 @@ public class ImageUploaderTest {
             fail("expected UploadError to be thrown");
         } catch (ImageUploader.UploadError e) {}
     }
+
+    @Test
+    public void test_upload_invalidUrl() {
+        final ImageUploader imageUploader = new ImageUploader();
+        try {
+            final InputStream inputStream = new ByteArrayInputStream(
+                "Sally Dutchman".getBytes());
+            imageUploader.upload("no-protocol.com", inputStream);
+            fail("Expected UploadError");
+        } catch (ImageUploader.UploadError e) {}
+    }
 }

@@ -25,24 +25,28 @@ public class ImageUploader {
     public Optional<String> upload(String url, InputStream inputStream)
             throws UploadError {
         final RequestBody body = new StreamBody(inputStream);
-        final Request request = new Request.Builder()
-            .url(url)
-            .post(body)
-            .build();
-        try(final Response response = client.newCall(request).execute()) {
-            // TODO: retry on certain conditions
-            if(response.code() != 200) {
-                throw new UploadError(String.format(
-                    "Server responded with error code %s", response.code()));
+        try {
+            final Request request = new Request.Builder()
+                .url(url)
+                .post(body)
+                .build();
+            try(final Response response = client.newCall(request).execute()) {
+                // TODO: retry on certain conditions
+                if(response.code() != 200) {
+                    throw new UploadError(String.format(
+                        "Server responded with error code %s", response.code()));
+                }
+                if(response.body() != null) {
+                    return Optional.of(response.body().string());
+                } else {
+                    return Optional.empty();
+                }
+            } catch (IOException e) {
+                throw new UploadError(String.format("Uploading to %s failed",
+                    url), e);
             }
-            if(response.body() != null) {
-                return Optional.of(response.body().string());
-            } else {
-                return Optional.empty();
-            }
-        } catch (IOException e) {
-            throw new UploadError(String.format("Uploading to %s failed",
-                url), e);
+        } catch (IllegalArgumentException e) {
+            throw new UploadError("Error building request", e);
         }
     }
 
