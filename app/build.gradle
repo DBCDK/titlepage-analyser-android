@@ -54,6 +54,7 @@ ext {
     espresso_version = "3.1.1"
     junit_version = "4.12"
     lightweight_stream_api_version = "1.2.1"
+    okhttp_version = "3.12.1"
     uiautomator_version = "2.2.0"
 }
 
@@ -66,7 +67,11 @@ dependencies {
         version: "$lightweight_stream_api_version"
     implementation group: "androidx.test.espresso",
         name: "espresso-idling-resource", version: espresso_version
+    implementation group: "com.squareup.okhttp3", name: "okhttp",
+        version: okhttp_version
     testImplementation group: "junit", name: "junit", version: junit_version
+    testImplementation group: "com.squareup.okhttp3", name: "mockwebserver",
+        version: okhttp_version
     androidTestImplementation group: "androidx.test.ext", name: "junit",
         version: androidx_test_ext_junit_version
     androidTestImplementation group: "androidx.test.espresso",
