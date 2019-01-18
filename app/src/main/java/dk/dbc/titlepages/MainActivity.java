@@ -9,6 +9,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.annimon.stream.Optional;
@@ -61,17 +62,16 @@ public class MainActivity extends Activity implements View.OnClickListener {
             startActivityForResult(intent,
                 CAPTURE_COLOPHON_PICTURE_REQUEST_CODE);
         } else if(id == R.id.send) {
-            final TextView resultTextview = findViewById(R.id.resultTextview);
             if(resultImageFilenames.containsKey(Constants.TITLEPAGE_FILENAME_KEY)) {
                 final UploadTask titlePageUploadTask = new UploadTask(
                     ImageUploadRestPath.titlePageEndpoint(bookId),
-                    resultImageFilenames.get(Constants.TITLEPAGE_FILENAME_KEY), resultTextview, this);
+                    resultImageFilenames.get(Constants.TITLEPAGE_FILENAME_KEY), this);
                 titlePageUploadTask.execute();
             }
             if(resultImageFilenames.containsKey(Constants.COLOPHON_FILENAME_KEY)) {
                 final UploadTask titlePageUploadTask = new UploadTask(
                     ImageUploadRestPath.colophonEndpoint(bookId),
-                    resultImageFilenames.get(Constants.COLOPHON_FILENAME_KEY), resultTextview, this);
+                    resultImageFilenames.get(Constants.COLOPHON_FILENAME_KEY), this);
                 titlePageUploadTask.execute();
             }
         } else {
@@ -105,18 +105,17 @@ public class MainActivity extends Activity implements View.OnClickListener {
     static class UploadTask extends AsyncTask<Void, Void, ResultHolder<String>> {
         private final String endpoint;
         private final String filename;
-        private final WeakReference<TextView> textViewReference;
-        private final WeakReference<Context> contextReference;
+        private final WeakReference<MainActivity> mainActivityReference;
 
-        UploadTask(String endpoint, String filename, TextView textView, Context context) {
+        UploadTask(String endpoint, String filename, MainActivity mainActivity) {
             this.endpoint = endpoint;
             this.filename = filename;
-            textViewReference = new WeakReference<>(textView);
-            contextReference = new WeakReference<>(context);
+            mainActivityReference = new WeakReference<>(mainActivity);
         }
 
         @Override
         public ResultHolder<String> doInBackground(Void... _void) {
+            publishProgress();
             final ImageUploader imageUploader = new ImageUploader();
             final File titlePage = new File(filename);
             try(final FileInputStream fileInputStream = new FileInputStream(titlePage)) {
@@ -132,22 +131,32 @@ public class MainActivity extends Activity implements View.OnClickListener {
         }
 
         @Override
+        public void onProgressUpdate(Void... _void) {
+            final MainActivity mainActivity = mainActivityReference.get();
+            if(mainActivity != null && !mainActivity.isFinishing()) {
+                final ProgressBar progressBar = mainActivity.findViewById(R.id.progressbar);
+                progressBar.setVisibility(View.VISIBLE);
+            }
+        }
+
+        @Override
         public void onPostExecute(ResultHolder<String> resultHolder) {
+            final MainActivity mainActivity = mainActivityReference.get();
+            if(mainActivity == null || mainActivity.isFinishing()) {
+                return;
+            }
+            final ProgressBar progressBar = mainActivity.findViewById(R.id.progressbar);
+            progressBar.setVisibility(View.INVISIBLE);
             resultHolder.getObject().ifPresent(text -> {
-                final TextView textView = textViewReference.get();
-                if(textView != null) {
-                    // TODO: make a better presentation of the results
-                    textView.append(text);
-                    textView.append("\n\n");
-                }
+                final TextView textView = mainActivity.findViewById(R.id.resultTextview);
+                // TODO: make a better presentation of the results
+                textView.append(text);
+                textView.append("\n\n");
             });
             resultHolder.getError().ifPresent(error -> {
                 Log.e(TAG, String.format("Couldn't upload image: %s", error.toString()));
-                final Context context = contextReference.get();
-                if(context != null) {
-                    Toast.makeText(context, context.getString(
-                        R.string.error_on_image_upload), Toast.LENGTH_LONG).show();
-                }
+                Toast.makeText(mainActivity, mainActivity.getString(
+                    R.string.error_on_image_upload), Toast.LENGTH_LONG).show();
             });
         }
     }
