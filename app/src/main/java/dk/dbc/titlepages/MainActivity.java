@@ -1,13 +1,23 @@
 package dk.dbc.titlepages;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
+import com.annimon.stream.Optional;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,6 +39,9 @@ public class MainActivity extends Activity implements View.OnClickListener {
 
         final Button colophon_picture_button = findViewById(R.id.colophon_picture_btn);
         colophon_picture_button.setOnClickListener(this);
+
+        final Button sendButton = findViewById(R.id.send);
+        sendButton.setOnClickListener(this);
     }
 
     @Override
@@ -48,6 +61,19 @@ public class MainActivity extends Activity implements View.OnClickListener {
                 Constants.IMAGE_TYPE_COLOPHON);
             startActivityForResult(intent,
                 CAPTURE_COLOPHON_PICTURE_REQUEST_CODE);
+        } else if(id == R.id.send) {
+            if(resultImageFilenames.containsKey(Constants.TITLEPAGE_FILENAME_KEY)) {
+                final UploadTask titlePageUploadTask = new UploadTask(
+                    ImageUploadRestPath.titlePageEndpoint(bookId),
+                    resultImageFilenames.get(Constants.TITLEPAGE_FILENAME_KEY), this);
+                titlePageUploadTask.execute();
+            }
+            if(resultImageFilenames.containsKey(Constants.COLOPHON_FILENAME_KEY)) {
+                final UploadTask titlePageUploadTask = new UploadTask(
+                    ImageUploadRestPath.colophonEndpoint(bookId),
+                    resultImageFilenames.get(Constants.COLOPHON_FILENAME_KEY), this);
+                titlePageUploadTask.execute();
+            }
         } else {
             Log.w(TAG, String.format("Clicked unknown view with id %s",
                 id));
@@ -73,6 +99,65 @@ public class MainActivity extends Activity implements View.OnClickListener {
                     "Activity result for %s was successful but result data is missing filename",
                     requestCode));
             }
+        }
+    }
+
+    static class UploadTask extends AsyncTask<Void, Void, ResultHolder<String>> {
+        private final String endpoint;
+        private final String filename;
+        private final WeakReference<MainActivity> mainActivityReference;
+
+        UploadTask(String endpoint, String filename, MainActivity mainActivity) {
+            this.endpoint = endpoint;
+            this.filename = filename;
+            mainActivityReference = new WeakReference<>(mainActivity);
+        }
+
+        @Override
+        public ResultHolder<String> doInBackground(Void... _void) {
+            publishProgress();
+            final ImageUploader imageUploader = new ImageUploader();
+            final File titlePage = new File(filename);
+            try(final FileInputStream fileInputStream = new FileInputStream(titlePage)) {
+                final Optional<String> result = imageUploader.upload(
+                    endpoint, fileInputStream);
+                if(result.isPresent()) {
+                    return new ResultHolder<>(result.get());
+                }
+            } catch (ImageUploader.UploadError | IOException e) {
+                return new ResultHolder<>(e);
+            }
+            return new ResultHolder<>();
+        }
+
+        @Override
+        public void onProgressUpdate(Void... _void) {
+            final MainActivity mainActivity = mainActivityReference.get();
+            if(mainActivity != null && !mainActivity.isFinishing()) {
+                final ProgressBar progressBar = mainActivity.findViewById(R.id.progressbar);
+                progressBar.setVisibility(View.VISIBLE);
+            }
+        }
+
+        @Override
+        public void onPostExecute(ResultHolder<String> resultHolder) {
+            final MainActivity mainActivity = mainActivityReference.get();
+            if(mainActivity == null || mainActivity.isFinishing()) {
+                return;
+            }
+            final ProgressBar progressBar = mainActivity.findViewById(R.id.progressbar);
+            progressBar.setVisibility(View.INVISIBLE);
+            resultHolder.getObject().ifPresent(text -> {
+                final TextView textView = mainActivity.findViewById(R.id.resultTextview);
+                // TODO: make a better presentation of the results
+                textView.append(text);
+                textView.append("\n\n");
+            });
+            resultHolder.getError().ifPresent(error -> {
+                Log.e(TAG, String.format("Couldn't upload image: %s", error.toString()));
+                Toast.makeText(mainActivity, mainActivity.getString(
+                    R.string.error_on_image_upload), Toast.LENGTH_LONG).show();
+            });
         }
     }
 }
